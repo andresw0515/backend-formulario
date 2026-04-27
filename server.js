@@ -17,15 +17,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Configurar transporte de email
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.BREVO_SENDER_EMAIL,
-    pass: process.env.BREVO_API_KEY,
-  },
-});
+
 
 // 🔹 GENERAR PDF PROFESIONAL
 function generarPDF(datos) {
@@ -181,46 +173,60 @@ app.post('/api/formulario', async (req, res) => {
       fechaEnvio
     });
     
-    // Enviar email
-    await transporter.sendMail({
-      from: `"Celco S.A.S" <${process.env.BREVO_SENDER_EMAIL}>`,
-      to: email_destino,
-      cc: process.env.BREVO_SENDER_EMAIL,
-      subject: `Orden de Servicio #${numeroServicio} - ${cliente}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #1565C0; color: white; padding: 20px; text-align: center;">
-            <h1>CELCO S.A.S</h1>
-            <h2>Orden de Servicio #${numeroServicio}</h2>
-          </div>
-          
-          <div style="padding: 20px; background-color: #f5f5f5;">
-            <h3 style="color: #1565C0;">Detalles del Servicio</h3>
-            <p><strong>Cliente:</strong> ${cliente}</p>
-            <p><strong>Trabajo:</strong> ${trabajo}</p>
-            <p><strong>Fecha:</strong> ${fechaEnvio}</p>
-            <p><strong>Técnico:</strong> ${usuario || 'No registrado'}</p>
-            
-            <div style="background-color: white; padding: 15px; border-left: 4px solid #1565C0; margin: 20px 0;">
-              <p style="margin: 0;"><strong>Notas:</strong></p>
-              <p style="margin: 5px 0 0 0;">${notas || 'Sin notas adicionales'}</p>
-            </div>
-          </div>
-          
-          <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-            <p>Celco S.A.S - Servicio Técnico Especializado</p>
-            <p>Documento generado automáticamente</p>
+// Enviar email con API REST de Brevo
+const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'api-key': process.env.BREVO_API_KEY,  // ← Esta es tu API Key v3
+  },
+  body: JSON.stringify({
+    sender: { 
+      name: "Celco S.A.S", 
+      email: process.env.BREVO_SENDER_EMAIL 
+    },
+    to: [
+      { email: email_destino }
+    ],
+    cc: [
+      { email: process.env.BREVO_SENDER_EMAIL }
+    ],
+    subject: `Orden de Servicio #${numeroServicio} - ${cliente}`,
+    htmlContent: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #1565C0; color: white; padding: 20px; text-align: center;">
+          <h1>CELCO S.A.S</h1>
+          <h2>Orden de Servicio #${numeroServicio}</h2>
+        </div>
+        <div style="padding: 20px; background-color: #f5f5f5;">
+          <h3 style="color: #1565C0;">Detalles del Servicio</h3>
+          <p><strong>Cliente:</strong> ${cliente}</p>
+          <p><strong>Trabajo:</strong> ${trabajo}</p>
+          <p><strong>Fecha:</strong> ${fechaEnvio}</p>
+          <p><strong>Técnico:</strong> ${usuario || 'No registrado'}</p>
+          <div style="background-color: white; padding: 15px; border-left: 4px solid #1565C0; margin: 20px 0;">
+            <p style="margin: 0;"><strong>Notas:</strong></p>
+            <p style="margin: 5px 0 0 0;">${notas || 'Sin notas adicionales'}</p>
           </div>
         </div>
-      `,
-      attachments: [
-        {
-          filename: `Orden_${numeroServicio}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
-    });
+        <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
+          <p>Celco S.A.S - Servicio Técnico Especializado</p>
+        </div>
+      </div>
+    `,
+    attachment: [
+      {
+        name: `Orden_${numeroServicio}.pdf`,
+        content: pdfBuffer.toString('base64')
+      }
+    ]
+  })
+});
+
+if (!brevoResponse.ok) {
+  const errorData = await brevoResponse.json();
+  throw new Error(`Brevo API error: ${JSON.stringify(errorData)}`);
+}
     
     submission.estado = 'enviado';
     console.log('✅ Email enviado con éxito');

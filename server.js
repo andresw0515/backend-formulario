@@ -329,51 +329,132 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 🔹 ENDPOINT PRINCIPAL - Recibir formulario (TU CÓDIGO ORIGINAL - SIN CAMBIOS)
+// 🔹 ENDPOINT PRINCIPAL - Recibir formulario (MODIFICADO: +MongoDB +Auth +CRONÓMETROS)
 app.post('/api/formulario', authMiddleware, async (req, res) => {
   try {
     console.log('📩 Received:', req.body);
+    
     const { cliente, trabajo, notas, email_destino, firma_base64, usuario } = req.body;
+    
+    // Obtener usuario autenticado
     const user = await User.findById(req.user.id);
     const nombreUsuario = user ? user.username : (usuario || 'admin');
     
+    // Generar número de servicio único (basado en conteo de BD)
     const count = await Submission.countDocuments();
     const numeroServicio = `SRV-${1001 + count}`;
-    const fechaEnvio = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    
+    const fechaEnvio = new Date().toLocaleString('es-CO', { 
+      timeZone: 'America/Bogota',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+    
+    // Guardar en MongoDB (en lugar de array en memoria)
+    
+    // ⏱️ INICIO MEDICIÓN: Guardar en BD
+    console.time('⏱️ 1. BD_Guardar');
     
     const submission = new Submission({
-      numeroServicio, cliente, trabajo, notas, email_destino, firma_base64,
-      usuario: nombreUsuario, usuarioId: user?._id, fechaEnvio, timestamp: new Date(), estado: 'pendiente'
+      numeroServicio,
+      cliente,
+      trabajo,
+      notas,
+      email_destino,
+      firma_base64,
+      usuario: nombreUsuario,
+      usuarioId: user?._id,
+      fechaEnvio,
+      timestamp: new Date(),
+      estado: 'pendiente'
     });
+    
     await submission.save();
     
-    const pdfBuffer = await generarPDF({ ...submission.toObject(), fechaEnvio });
+    // ⏱️ FIN MEDICIÓN: Guardar en BD
+    console.timeEnd('⏱️ 1. BD_Guardar');
+    
+    // Generar PDF (TU CÓDIGO ORIGINAL - SIN CAMBIOS)
+    
+    // ⏱️ INICIO MEDICIÓN: Generar PDF
+    console.time('⏱️ 2. PDF_Generar');
+    
+    const pdfBuffer = await generarPDF({
+      ...submission.toObject(),
+      fechaEnvio
+    });
+    
+    // ⏱️ FIN MEDICIÓN: Generar PDF
+    console.timeEnd('⏱️ 2. PDF_Generar');
+    
+    // Enviar email con API REST de Brevo (TU CÓDIGO ORIGINAL - SIN CAMBIOS)
+    
+    // ⏱️ INICIO MEDICIÓN: Envío Brevo
+    console.time('⏱️ 3. Brevo_Envio');
     
     const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'api-key': process.env.BREVO_API_KEY },
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': process.env.BREVO_API_KEY,
+      },
       body: JSON.stringify({
         sender: { name: "Celco S.A.S", email: process.env.BREVO_SENDER_EMAIL },
         to: [{ email: email_destino }],
         cc: [{ email: process.env.BREVO_SENDER_EMAIL }],
         subject: `Orden de Servicio #${numeroServicio} - ${cliente}`,
-        htmlContent: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><div style="background-color: #1565C0; color: white; padding: 20px; text-align: center;"><h1>CELCO S.A.S</h1><h2>Orden de Servicio #${numeroServicio}</h2></div><div style="padding: 20px; background-color: #f5f5f5;"><h3 style="color: #1565C0;">Detalles del Servicio</h3><p><strong>Cliente:</strong> ${cliente}</p><p><strong>Trabajo:</strong> ${trabajo}</p><p><strong>Fecha:</strong> ${fechaEnvio}</p><p><strong>Técnico:</strong> ${nombreUsuario}</p><div style="background-color: white; padding: 15px; border-left: 4px solid #1565C0; margin: 20px 0;"><p style="margin: 0;"><strong>Notas:</strong></p><p style="margin: 5px 0 0 0;">${notas || 'Sin notas adicionales'}</p></div></div><div style="padding: 20px; text-align: center; color: #999; font-size: 12px;"><p>Celco S.A.S - Servicio Técnico Especializado</p></div></div>`,
-        attachment: [{ name: `Orden_${numeroServicio}.pdf`, content: pdfBuffer.toString('base64') }]
+        htmlContent: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1565C0; color: white; padding: 20px; text-align: center;">
+              <h1>CELCO S.A.S</h1>
+              <h2>Orden de Servicio #${numeroServicio}</h2>
+            </div>
+            <div style="padding: 20px; background-color: #f5f5f5;">
+              <h3 style="color: #1565C0;">Detalles del Servicio</h3>
+              <p><strong>Cliente:</strong> ${cliente}</p>
+              <p><strong>Trabajo:</strong> ${trabajo}</p>
+              <p><strong>Fecha:</strong> ${fechaEnvio}</p>
+              <p><strong>Técnico:</strong> ${nombreUsuario}</p>
+              <div style="background-color: white; padding: 15px; border-left: 4px solid #1565C0; margin: 20px 0;">
+                <p style="margin: 0;"><strong>Notas:</strong></p>
+                <p style="margin: 5px 0 0 0;">${notas || 'Sin notas adicionales'}</p>
+              </div>
+            </div>
+            <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
+              <p>Celco S.A.S - Servicio Técnico Especializado</p>
+            </div>
+          </div>
+        `,
+        attachment: [
+          {
+            name: `Orden_${numeroServicio}.pdf`,
+            content: pdfBuffer.toString('base64')
+          }
+        ]
       })
     });
+
+    // ⏱️ FIN MEDICIÓN: Envío Brevo
+    console.timeEnd('⏱️ 3. Brevo_Envio');
 
     if (!brevoResponse.ok) {
       const errorData = await brevoResponse.json();
       console.error('❌ Error Brevo:', errorData);
       submission.estado = 'error_email';
       await submission.save();
+      // No lanzamos error, el formulario se guardó en BD
     } else {
       submission.estado = 'enviado';
       await submission.save();
       console.log('✅ Email enviado con éxito');
     }
     
-    res.json({ success: true, message: 'Formulario guardado y enviado', numeroServicio });
+    res.json({ 
+      success: true, 
+      message: 'Formulario guardado y enviado',
+      numeroServicio 
+    });
+    
   } catch (error) {
     console.error('❌ Error:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

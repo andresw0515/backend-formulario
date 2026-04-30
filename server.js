@@ -42,10 +42,10 @@ const UserSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+UserSchema.pre('save', async function() {
+  if (!this.isModified('password')) return; // Solo haz return, no llames a next()
   this.password = await bcrypt.hash(this.password, 10);
-  next();
+  // No llames a next(), async maneja el flujo automáticamente
 });
 const User = mongoose.model('User', UserSchema);
 

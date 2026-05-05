@@ -333,8 +333,8 @@ function generarCartaServicioPDF(datos) {
             const fotoY = y + (row * 100); // Espacio más grande para las fotos
             
             const imgBuffer = Buffer.from(cleanBase64, 'base64');
-            // Dibujar imagen sin 'fit' para forzar el tamaño exacto y asegurar que se vea
-            doc.image(imgBuffer, fotoX, fotoY, { width: colWidth, height: 85 });
+// fit: 'contain' hace que la imagen se ajuste al cuadro sin estirarse feo
+doc.image(imgBuffer, fotoX, fotoY, { width: colWidth, height: 85, fit: 'contain' });
             doc.fontSize(7).fillColor('#666').font('Helvetica').text(
               foto.nombre || `Foto ${index + 1}`, 
               fotoX, 

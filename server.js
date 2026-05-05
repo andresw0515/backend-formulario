@@ -218,10 +218,10 @@ function generarPDF(datos) {
   });
 }
 
-// === 🆕 NUEVO: Generar PDF Carta de Servicio (Formato QF-VE008 - CALIDAD + 1 PÁGINA) ===
+// === 🆕 NUEVO: Generar PDF Carta de Servicio (Formato QF-VE008 - FINAL) ===
 function generarCartaServicioPDF(datos) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 25, size: 'A4', autoFirstPage: true });
+    const doc = new PDFDocument({ margin: 30, size: 'A4', autoFirstPage: true });
     const chunks = [];
     doc.on('data', chunk => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -229,13 +229,13 @@ function generarCartaServicioPDF(datos) {
 
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
-    const margin = 25;
+    const margin = 30;
     const contentWidth = pageWidth - (margin * 2);
     
     let y = margin;
 
     // ==========================================
-    // 1. ENCABEZADO CON CAMPOS DE CALIDAD
+    // 1. ENCABEZADO
     // ==========================================
     // Izquierda: EELCO
     doc.fontSize(10).fillColor('#1565C0').font('Helvetica-Bold').text('EELCO', margin, y);
@@ -244,7 +244,7 @@ function generarCartaServicioPDF(datos) {
     // Centro: Título
     doc.fontSize(14).fillColor('#000').font('Helvetica-Bold').text('CARTA DE SERVICIO', pageWidth / 2, y + 5, { align: 'center' });
     
-    // Derecha: Campos de Calidad (CÓDIGO/VERSIÓN/FECHA)
+    // Derecha: Campos de Calidad
     doc.fontSize(7).fillColor('#000').font('Helvetica')
        .text(`CÓDIGO: ${datos.codigoDocumento || 'QF-VE008'}`, pageWidth - margin - 90, y, { align: 'right', width: 90 })
        .text(`VERSIÓN: ${datos.versionDocumento || '02'}`, pageWidth - margin - 90, y + 9, { align: 'right', width: 90 })
@@ -255,11 +255,11 @@ function generarCartaServicioPDF(datos) {
     y += 15;
 
     // ==========================================
-    // 2. DATOS PRINCIPALES (Compacto)
+    // 2. DATOS PRINCIPALES
     // ==========================================
     doc.fontSize(8).fillColor('#000').font('Helvetica-Bold');
     
-    // Fila 1: OT | CLIENTE | ITEM | No. SERIE
+    // Fila 1
     doc.text('OT:', margin, y);
     doc.font('Helvetica').text(datos.ot || '__________', margin + 25, y, { width: 110 });
     
@@ -277,7 +277,7 @@ function generarCartaServicioPDF(datos) {
     doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#ccc').lineWidth(0.5).stroke();
     y += 12;
 
-    // Fila 2: LUGAR | EQUIPO(S) | REALIZADO POR
+    // Fila 2
     doc.font('Helvetica-Bold').text('LUGAR DEL SERVICIO:', margin, y);
     doc.font('Helvetica').text(datos.lugarServicio || '__________', margin, y + 10, { width: 180 });
     
@@ -292,7 +292,7 @@ function generarCartaServicioPDF(datos) {
     y += 12;
 
     // ==========================================
-    // 3. PÁRRAFO LEGAL (Compacto)
+    // 3. PÁRRAFO LEGAL
     // ==========================================
     doc.fontSize(8).fillColor('#000').font('Helvetica');
     const parrafo = `La empresa ${datos.cliente || '_______'} hace constar que el día ${datos.fechaDia || '__'} del mes de ${datos.fechaMes || '_______'} del año 20${datos.fechaAnio || '__'}, recibió a entera satisfacción el servicio realizado por CELCO S.A.S, al equipo referenciado como: ${datos.item || '_______'}`;
@@ -311,14 +311,14 @@ function generarCartaServicioPDF(datos) {
     y += 20;
 
     // ==========================================
-    // 5. FOTOS (Máximo 4, muy compacto)
+    // 5. FOTOS (Mejorado: Más espacio y manejo de errores)
     // ==========================================
     if (datos.fotos && datos.fotos.length > 0) {
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1565C0').text('FOTOS:', margin, y);
-      y += 8;
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1565C0').text('FOTOS DEL SERVICIO:', margin, y);
+      y += 10;
       
       const fotosAMostrar = datos.fotos.slice(0, 4);
-      const colWidth = (contentWidth / 2) - 8;
+      const colWidth = (contentWidth / 2) - 10;
       let fotoIndex = 0;
       
       fotosAMostrar.forEach((foto, index) => {
@@ -329,39 +329,47 @@ function generarCartaServicioPDF(datos) {
             
             const col = index % 2;
             const row = Math.floor(index / 2);
-            const fotoX = margin + (col * (colWidth + 8));
-            const fotoY = y + (row * 85);
+            const fotoX = margin + (col * (colWidth + 10));
+            const fotoY = y + (row * 100); // Espacio más grande para las fotos
             
             const imgBuffer = Buffer.from(cleanBase64, 'base64');
-            doc.image(imgBuffer, fotoX, fotoY, { width: colWidth, height: 65, fit: 'contain' });
-            doc.fontSize(6).fillColor('#666').font('Helvetica').text(
+            // Dibujar imagen sin 'fit' para forzar el tamaño exacto y asegurar que se vea
+            doc.image(imgBuffer, fotoX, fotoY, { width: colWidth, height: 85 });
+            doc.fontSize(7).fillColor('#666').font('Helvetica').text(
               foto.nombre || `Foto ${index + 1}`, 
               fotoX, 
-              fotoY + 68, 
+              fotoY + 90, 
               { width: colWidth, align: 'center' }
             );
             fotoIndex++;
-          } catch (err) { console.error('Error foto:', err.message); }
+          } catch (err) { 
+            console.error('❌ Error foto PDF:', err.message); 
+          }
         }
       });
       
-      y += (Math.ceil(fotoIndex / 2) * 85) + 8;
+      // Si se procesaron fotos, avanzar el cursor Y
+      if (fotoIndex > 0) {
+        y += (Math.ceil(fotoIndex / 2) * 100) + 10;
+      } else {
+        y += 10; // Si fallaron, solo avanzamos un poco
+      }
     }
 
     // ==========================================
     // 6. UBICACIÓN (Sin emojis)
     // ==========================================
     if (datos.ubicacion?.latitud) {
-      doc.fontSize(7).fillColor('#666').font('Helvetica')
-         .text(`Ubicacion: ${datos.ubicacion.latitud}, ${datos.ubicacion.longitud}`, margin, y, { width: contentWidth });
-      y += 9;
+      doc.fontSize(8).fillColor('#666').font('Helvetica')
+         .text(`Ubicación: ${datos.ubicacion.latitud}, ${datos.ubicacion.longitud}`, margin, y, { width: contentWidth });
+      y += 12;
       if (datos.ubicacion.direccion) {
-        doc.text(`Direccion: ${datos.ubicacion.direccion}`, margin, y, { width: contentWidth });
-        y += 9;
+        doc.text(`Dirección: ${datos.ubicacion.direccion}`, margin, y, { width: contentWidth });
+        y += 12;
       }
       if (datos.ubicacion.ciudad) {
         doc.text(`${datos.ubicacion.ciudad}, ${datos.ubicacion.pais || 'Colombia'}`, margin, y, { width: contentWidth });
-        y += 10;
+        y += 15;
       }
     }
 
@@ -376,26 +384,23 @@ function generarCartaServicioPDF(datos) {
     signY += 10;
     
     // CELCO
-    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representacion de CELCO S.A.S:', margin, signY);
+    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representación de CELCO S.A.S:', margin, signY);
     doc.fontSize(7).font('Helvetica').text(`Nombre: ${datos.firmaCelcoNombre || '__________'}`, margin, signY + 8);
     doc.text(`Cargo: ${datos.firmaCelcoCargo || '__________'}`, margin, signY + 16);
     doc.moveTo(margin, signY + 28).lineTo(margin + 180, signY + 28).strokeColor('#999').lineWidth(0.5).stroke();
     doc.fontSize(6).fillColor('#999').text('(Firma)', margin, signY + 32);
     
     // CLIENTE
-    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representacion del Cliente:', margin + 280, signY);
+    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representación del Cliente:', margin + 280, signY);
     doc.fontSize(7).font('Helvetica').text(`Nombre: ${datos.firmaClienteNombre || '__________'}`, margin + 280, signY + 8);
     doc.text(`Cargo: ${datos.firmaClienteCargo || '__________'}`, margin + 280, signY + 16);
     doc.moveTo(margin + 280, signY + 28).lineTo(margin + 460, signY + 28).strokeColor('#999').lineWidth(0.5).stroke();
     doc.fontSize(6).fillColor('#999').text('(Firma)', margin + 280, signY + 32);
 
     // ==========================================
-    // 8. PIE DE PÁGINA (Centrado, SIN crear página nueva)
+    // 8. PIE DE PÁGINA ELIMINADO (Para evitar 3ra página y errores de corte)
     // ==========================================
-    const finalFooterY = pageHeight - 20;
-    doc.fontSize(7).fillColor('#999').font('Helvetica')
-       .text('Celco S.A.S - Servicio Tecnico Especializado', pageWidth / 2, finalFooterY - 10, { align: 'center', width: contentWidth })
-       .text('Documento generado electronicamente', pageWidth / 2, finalFooterY, { align: 'center', width: contentWidth });
+    // Se eliminaron las líneas del footer para dejar el documento limpio hasta las firmas.
 
     doc.end();
   });

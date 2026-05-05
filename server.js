@@ -285,27 +285,58 @@ function generarCartaServicioPDF(datos) {
     );
     doc.y += 15;
 
-    // === FOTOS (Máximo 4 para garantizar 1 página) ===
-    if (datos.fotos && datos.fotos.length > 0) {
-      doc.fontSize(10).font('Helvetica-Bold').text('FOTOS DEL SERVICIO:', 40, doc.y);
-      doc.y += 5;
-      const fotosAMostrar = datos.fotos.slice(0, 4);
-      let fotoX = 40;
-      fotosAMostrar.forEach((foto, index) => {
-        if (foto.base64) {
-          try {
-            const cleanBase64 = foto.base64.replace(/^data:image\/[a-z]+;base64,/, '');
-            const imgBuffer = Buffer.from(cleanBase64, 'base64');
-            doc.image(imgBuffer, fotoX, doc.y, { width: 110, height: 80, fit: 'contain' });
-            doc.fontSize(7).fillColor('#666').text(foto.nombre || `Foto ${index + 1}`, fotoX, doc.y + 85, { width: 110, align: 'center' });
-          } catch (err) { console.error('Error foto PDF:', err); }
+// === FOTOS (Máximo 4 para garantizar 1 página) ===
+if (datos.fotos && datos.fotos.length > 0) {
+  // Validar que doc.y sea un número válido
+  if (typeof doc.y !== 'number' || isNaN(doc.y) || doc.y < 100) {
+    doc.y = 350; // Forzar posición segura
+  }
+  
+  doc.fontSize(10).font('Helvetica-Bold').fillColor('#000').text('FOTOS DEL SERVICIO:', 40, doc.y);
+  doc.y += 15;
+  
+  const fotosAMostrar = datos.fotos.slice(0, 4);
+  let fotoX = 40;
+  let fotoY = doc.y;
+  
+  fotosAMostrar.forEach((foto, index) => {
+    if (foto.base64) {
+      try {
+        // Limpiar base64 (soporta con o sin prefijo)
+        let cleanBase64 = foto.base64;
+        if (cleanBase64.includes('base64,')) {
+          cleanBase64 = cleanBase64.split('base64,')[1];
         }
-        // Alternar columnas
-        if (index % 2 === 0) fotoX = 270;
-        else { fotoX = 40; doc.y += 100; }
-      });
-      doc.y += 10;
+        
+        const imgBuffer = Buffer.from(cleanBase64, 'base64');
+        
+        // Validar coordenadas antes de dibujar
+        if (typeof fotoY === 'number' && !isNaN(fotoY) && fotoY < 700) {
+          doc.image(imgBuffer, fotoX, fotoY, { width: 110, height: 80, fit: 'contain' });
+          doc.fontSize(7).fillColor('#666').font('Helvetica').text(
+            foto.nombre || `Foto ${index + 1}`, 
+            fotoX, 
+            fotoY + 85, 
+            { width: 110, align: 'center' }
+          );
+        }
+      } catch (err) { 
+        console.error('❌ Error procesando foto:', err.message); 
+      }
     }
+    
+    // Alternar columnas (2x2 grid)
+    if (index % 2 === 0) {
+      fotoX = 270; // Segunda columna
+    } else {
+      fotoX = 40;  // Primera columna
+      fotoY += 100; // Siguiente fila
+    }
+  });
+  
+  // Actualizar doc.y principal
+  doc.y = fotoY + 20;
+}
 
     // === UBICACIÓN GPS ===
     if (datos.ubicacion?.latitud) {

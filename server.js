@@ -310,51 +310,124 @@ function generarCartaServicioPDF(datos) {
     );
     y += 20;
 
-    // ==========================================
-    // 5. FOTOS (Mejorado: Más espacio y manejo de errores)
-    // ==========================================
-    if (datos.fotos && datos.fotos.length > 0) {
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1565C0').text('FOTOS DEL SERVICIO:', margin, y);
-      y += 10;
-      
-      const fotosAMostrar = datos.fotos.slice(0, 4);
-      const colWidth = (contentWidth / 2) - 10;
-      let fotoIndex = 0;
-      
-      fotosAMostrar.forEach((foto, index) => {
-        if (foto.base64) {
-          try {
-            let cleanBase64 = foto.base64;
-            if (cleanBase64.includes('base64,')) cleanBase64 = cleanBase64.split('base64,')[1];
-            
-            const col = index % 2;
-            const row = Math.floor(index / 2);
-            const fotoX = margin + (col * (colWidth + 10));
-            const fotoY = y + (row * 100); // Espacio más grande para las fotos
-            
-            const imgBuffer = Buffer.from(cleanBase64, 'base64');
-// fit: 'contain' hace que la imagen se ajuste al cuadro sin estirarse feo
-doc.image(imgBuffer, fotoX, fotoY, { width: colWidth, height: 85, fit: 'contain' });
-            doc.fontSize(7).fillColor('#666').font('Helvetica').text(
-              foto.nombre || `Foto ${index + 1}`, 
-              fotoX, 
-              fotoY + 90, 
-              { width: colWidth, align: 'center' }
-            );
-            fotoIndex++;
-          } catch (err) { 
-            console.error('❌ Error foto PDF:', err.message); 
-          }
+// ==========================================
+// 5. FOTOS (CON VALIDACIONES ROBUSTAS)
+// ==========================================
+if (datos.fotos && Array.isArray(datos.fotos) && datos.fotos.length > 0) {
+  console.log(`📸 Procesando ${datos.fotos.length} foto(s)...`);
+  
+  doc.fontSize(9).font('Helvetica-Bold').fillColor('#1565C0').text('FOTOS DEL SERVICIO:', margin, y);
+  y += 10;
+  
+  const fotosAMostrar = datos.fotos.slice(0, 4);
+  const colWidth = Math.max(100, Math.floor((contentWidth / 2) - 10)); // Validar ancho mínimo
+  let fotoIndex = 0;
+  
+  fotosAMostrar.forEach((foto, index) => {
+    if (foto && foto.base64) {
+      try {
+        // Limpiar base64
+        let cleanBase64 = foto.base64.trim();
+        if (cleanBase64.includes('base64,')) {
+          cleanBase64 = cleanBase64.split('base64,')[1].trim();
         }
-      });
-      
-      // Si se procesaron fotos, avanzar el cursor Y
-      if (fotoIndex > 0) {
-        y += (Math.ceil(fotoIndex / 2) * 100) + 10;
-      } else {
-        y += 10; // Si fallaron, solo avanzamos un poco
+        
+        // Validar longitud mínima
+        if (cleanBase64.length < 1000) {
+          console.warn(`⚠️ Base64 muy corto (${cleanBase64.length} chars), saltando foto ${index + 1}`);
+          return;
+        }
+        
+        // Crear buffer con validación
+        const imgBuffer = Buffer.from(cleanBase64, 'base64');
+        if (!imgBuffer || imgBuffer.length === 0) {
+          console.warn(`⚠️ Buffer vacío para foto ${index + 1}`);
+          return;
+        }
+        
+        // Calcular coordenadas CON VALIDACIÓN DE NaN
+        const col = index % 2;
+        const row = Math.floor(index / 2);
+        
+        // Validar que 'y' sea un número válido antes de usarlo
+        if (typeof y !== 'number' || isNaN(y) || y < 0) {
+          console.error(`❌ Variable 'y' inválida: ${y}, usando valor por defecto`);
+          y = 400; // Valor de rescate
+        }
+        
+        const fotoX = margin + (col * (colWidth + 10));
+        const fotoY = y + (row * 100);
+        
+        // Validar coordenadas finales
+        if (isNaN(fotoX) || isNaN(fotoY) || fotoX < 0 || fotoY < 0) {
+          console.error(`❌ Coordenadas inválidas: X=${fotoX}, Y=${fotoY}`);
+          return;
+        }
+        
+        const imgHeight = 85;
+        const imgWidth = colWidth;
+        
+        console.log(`  🖼️ Dibujando foto ${index + 1}: X=${fotoX}, Y=${fotoY}, ${imgWidth}x${imgHeight}, buffer=${imgBuffer.length} bytes`);
+        
+        // Dibujar imagen con opciones seguras
+        doc.image(imgBuffer, fotoX, fotoY, { 
+          width: imgWidth, 
+          height: imgHeight,
+          fit: 'contain',
+          align: 'center'
+        });
+        
+        // Texto debajo de la foto
+        doc.fontSize(7).fillColor('#666').font('Helvetica').text(
+          foto.nombre || `Foto ${index + 1}`, 
+          fotoX, 
+          fotoY + imgHeight + 5, 
+          { width: imgWidth, align: 'center' }
+        );
+        
+        fotoIndex++;
+        console.log(`  ✅ Foto ${index + 1} renderizada`);
+        
+      } catch (err) { 
+        console.error(`❌ Error procesando foto ${index + 1}:`, err.message);
+        // Mostrar placeholder de error en el PDF
+        try {
+          doc.rect(
+            margin + ((index % 2) * (colWidth + 10)), 
+            y + (Math.floor(index / 2) * 100), 
+            colWidth, 
+            85
+          ).strokeColor('#ff0000').stroke();
+          doc.fontSize(7).fillColor('#ff0000').text(
+            'Error al cargar', 
+            margin + ((index % 2) * (colWidth + 10)), 
+            y + (Math.floor(index / 2) * 100) + 35,
+            { width: colWidth, align: 'center' }
+          );
+        } catch (e) {
+          console.error('  ❌ No se pudo dibujar placeholder de error');
+        }
       }
     }
+  });
+  
+  // Avanzar el cursor Y solo si se procesaron fotos válidas
+  if (fotoIndex > 0) {
+    const rowsUsed = Math.ceil(fotoIndex / 2);
+    y += (rowsUsed * 100) + 15;
+  } else {
+    y += 10;
+    // Mostrar mensaje si no se procesó ninguna foto
+    doc.fontSize(8).fillColor('#999').font('Helvetica').text(
+      '(Sin fotos adjuntas)', 
+      margin, 
+      y
+    );
+    y += 15;
+  }
+  
+  console.log(`✅ Fotos procesadas: ${fotoIndex}/${datos.fotos.length}`);
+}
 
     // ==========================================
     // 6. UBICACIÓN (Sin emojis)

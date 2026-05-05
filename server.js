@@ -368,7 +368,7 @@ function generarCartaServicioPDF(datos) {
     // === FIRMAS ===
     const footerSpace = 150;
     const pageBottom = pageHeight - margin;
-    const signY = Math.max(currentY, pageBottom - footerSpace);
+    let signY = Math.max(currentY, pageBottom - footerSpace);
     
     // Línea superior de firmas
     doc.moveTo(margin, signY).lineTo(pageWidth - margin, signY).strokeColor('#1565C0').lineWidth(1).stroke();

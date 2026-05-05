@@ -218,11 +218,10 @@ function generarPDF(datos) {
   });
 }
 
-// === 🆕 NUEVO: Generar PDF Carta de Servicio (Formato QF-VE008 - VERSIÓN FINAL) ===
+// === 🆕 NUEVO: Generar PDF Carta de Servicio (Formato QF-VE008 - CALIDAD + 1 PÁGINA) ===
 function generarCartaServicioPDF(datos) {
   return new Promise((resolve, reject) => {
-    // Configuración de página A4
-    const doc = new PDFDocument({ margin: 30, size: 'A4', autoFirstPage: true });
+    const doc = new PDFDocument({ margin: 25, size: 'A4', autoFirstPage: true });
     const chunks = [];
     doc.on('data', chunk => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -230,102 +229,96 @@ function generarCartaServicioPDF(datos) {
 
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
-    const margin = 30;
+    const margin = 25;
     const contentWidth = pageWidth - (margin * 2);
     
-    let y = margin; // Cursor vertical actual
+    let y = margin;
 
     // ==========================================
-    // 1. ENCABEZADO (Header)
+    // 1. ENCABEZADO CON CAMPOS DE CALIDAD
     // ==========================================
     // Izquierda: EELCO
-    doc.fontSize(11).fillColor('#1565C0').font('Helvetica-Bold').text('EELCO', margin, y);
-    doc.fontSize(7).fillColor('#666').font('Helvetica').text('Subestaciones - Switchgear - Tableros de Distribucion', margin, y + 14);
+    doc.fontSize(10).fillColor('#1565C0').font('Helvetica-Bold').text('EELCO', margin, y);
+    doc.fontSize(6).fillColor('#666').font('Helvetica').text('Subestaciones - Switchgear - Tableros', margin, y + 10);
     
-    // Centro: Título (Centrado Perfecto)
-    doc.fontSize(15).fillColor('#000').font('Helvetica-Bold').text('CARTA DE SERVICIO', pageWidth / 2, y + 5, { align: 'center', width: 250 });
+    // Centro: Título
+    doc.fontSize(14).fillColor('#000').font('Helvetica-Bold').text('CARTA DE SERVICIO', pageWidth / 2, y + 5, { align: 'center' });
     
-    // Derecha: Código/Versión/Fecha
-    doc.fontSize(8).fillColor('#000').font('Helvetica')
-       .text(`CÓDIGO: ${datos.codigoDocumento || 'QF-VE008'}`, pageWidth - margin, y, { align: 'right', width: 110 })
-       .text(`VERSIÓN: ${datos.versionDocumento || '02'}`, pageWidth - margin, y + 12, { align: 'right', width: 110 })
-       .text(`FECHA: ${datos.fechaDocumento || '2021/03/18'}`, pageWidth - margin, y + 24, { align: 'right', width: 110 });
+    // Derecha: Campos de Calidad (CÓDIGO/VERSIÓN/FECHA)
+    doc.fontSize(7).fillColor('#000').font('Helvetica')
+       .text(`CÓDIGO: ${datos.codigoDocumento || 'QF-VE008'}`, pageWidth - margin - 90, y, { align: 'right', width: 90 })
+       .text(`VERSIÓN: ${datos.versionDocumento || '02'}`, pageWidth - margin - 90, y + 9, { align: 'right', width: 90 })
+       .text(`FECHA: ${datos.fechaDocumento || '2021/03/18'}`, pageWidth - margin - 90, y + 18, { align: 'right', width: 90 });
     
-    y += 50;
-    // Línea azul gruesa
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#1565C0').lineWidth(2).stroke();
-    y += 20;
+    y += 32;
+    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#1565C0').lineWidth(1.5).stroke();
+    y += 15;
 
     // ==========================================
-    // 2. DATOS DEL SERVICIO (Fila 1)
+    // 2. DATOS PRINCIPALES (Compacto)
     // ==========================================
-    doc.fontSize(9).fillColor('#000').font('Helvetica-Bold');
+    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold');
     
-    // OT
+    // Fila 1: OT | CLIENTE | ITEM | No. SERIE
     doc.text('OT:', margin, y);
-    doc.font('Helvetica').text(datos.ot || '____________________', margin + 30, y, { width: 130 });
+    doc.font('Helvetica').text(datos.ot || '__________', margin + 25, y, { width: 110 });
     
-    // CLIENTE
-    doc.font('Helvetica-Bold').text('CLIENTE:', margin + 170, y);
-    doc.font('Helvetica').text(datos.cliente || '____________________', margin + 230, y, { width: 140 });
+    doc.font('Helvetica-Bold').text('CLIENTE:', margin + 145, y);
+    doc.font('Helvetica').text(datos.cliente || '__________', margin + 190, y, { width: 130 });
     
-    // ITEM
-    doc.font('Helvetica-Bold').text('ITEM:', margin + 380, y);
-    doc.font('Helvetica').text(datos.item || '____________________', margin + 415, y, { width: 120 });
+    doc.font('Helvetica-Bold').text('ITEM:', margin + 330, y);
+    doc.font('Helvetica').text(datos.item || '__________', margin + 360, y, { width: 100 });
     
-    y += 15;
-    // No. Serie (debajo de ITEM)
-    doc.font('Helvetica-Bold').text('No. DE SERIE:', margin + 380, y);
-    doc.font('Helvetica').text(datos.noSerie || '____________________', margin + 480, y, { width: 80 });
+    y += 12;
+    doc.font('Helvetica-Bold').text('No. DE SERIE:', margin + 330, y);
+    doc.font('Helvetica').text(datos.noSerie || '__________', margin + 420, y, { width: 80 });
     
-    y += 25;
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#999').lineWidth(1).stroke();
-    y += 15;
+    y += 18;
+    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#ccc').lineWidth(0.5).stroke();
+    y += 12;
 
-    // ==========================================
-    // 3. DATOS DEL SERVICIO (Fila 2)
-    // ==========================================
+    // Fila 2: LUGAR | EQUIPO(S) | REALIZADO POR
     doc.font('Helvetica-Bold').text('LUGAR DEL SERVICIO:', margin, y);
-    doc.font('Helvetica').text(datos.lugarServicio || '____________________', margin, y + 12, { width: 200, align: 'left' });
+    doc.font('Helvetica').text(datos.lugarServicio || '__________', margin, y + 10, { width: 180 });
     
-    doc.font('Helvetica-Bold').text('EQUIPO(S):', margin + 220, y);
-    doc.font('Helvetica').text(datos.equipos || '____________________', margin + 220, y + 12, { width: 180 });
+    doc.font('Helvetica-Bold').text('EQUIPO(S):', margin + 195, y);
+    doc.font('Helvetica').text(datos.equipos || '__________', margin + 195, y + 10, { width: 150 });
     
-    doc.font('Helvetica-Bold').text('TRABAJO REALIZADO POR:', margin + 410, y);
-    doc.font('Helvetica').text(datos.trabajoRealizadoPor || '____________________', margin + 410, y + 12, { width: 140 });
+    doc.font('Helvetica-Bold').text('TRABAJO REALIZADO POR:', margin + 355, y);
+    doc.font('Helvetica').text(datos.trabajoRealizadoPor || '__________', margin + 355, y + 10, { width: 135 });
     
-    y += 45;
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#999').lineWidth(1).stroke();
-    y += 15;
-
-    // ==========================================
-    // 4. PÁRRAFO LEGAL
-    // ==========================================
-    doc.fontSize(9).fillColor('#000').font('Helvetica');
-    const parrafo = `La empresa ${datos.cliente || '____________'} hace constar que el día ${datos.fechaDia || '__'} del mes de ${datos.fechaMes || '________'} del año 20${datos.fechaAnio || '__'}, recibió a entera satisfacción el servicio realizado por CELCO S.A.S, al equipo referenciado como: ${datos.item || '____________'}`;
-    doc.text(parrafo, margin, y, { width: contentWidth, lineHeight: 1.3, align: 'justify' });
     y += 35;
+    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#ccc').lineWidth(0.5).stroke();
+    y += 12;
 
     // ==========================================
-    // 5. DESCRIPCIÓN DEL TRABAJO
+    // 3. PÁRRAFO LEGAL (Compacto)
     // ==========================================
-    doc.fontSize(10).font('Helvetica-Bold').text('El trabajo que se realizó fue el siguiente:', margin, y);
-    y += 15;
-    doc.fontSize(9).font('Helvetica').text(
-      datos.descripcionTrabajo || datos.notas || 'Sin descripción adicional',
-      margin, y, { width: contentWidth, align: 'justify', lineHeight: 1.4 }
+    doc.fontSize(8).fillColor('#000').font('Helvetica');
+    const parrafo = `La empresa ${datos.cliente || '_______'} hace constar que el día ${datos.fechaDia || '__'} del mes de ${datos.fechaMes || '_______'} del año 20${datos.fechaAnio || '__'}, recibió a entera satisfacción el servicio realizado por CELCO S.A.S, al equipo referenciado como: ${datos.item || '_______'}`;
+    doc.text(parrafo, margin, y, { width: contentWidth, lineHeight: 1.2 });
+    y += 25;
+
+    // ==========================================
+    // 4. DESCRIPCIÓN DEL TRABAJO
+    // ==========================================
+    doc.fontSize(9).font('Helvetica-Bold').text('El trabajo que se realizó fue el siguiente:', margin, y);
+    y += 10;
+    doc.fontSize(8).font('Helvetica').text(
+      datos.descripcionTrabajo || datos.notas || 'Sin descripción',
+      margin, y, { width: contentWidth, align: 'justify', lineHeight: 1.3 }
     );
     y += 20;
 
     // ==========================================
-    // 6. FOTOS (Máximo 4, Grid 2x2)
+    // 5. FOTOS (Máximo 4, muy compacto)
     // ==========================================
     if (datos.fotos && datos.fotos.length > 0) {
-      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1565C0').text('FOTOS DEL SERVICIO:', margin, y);
-      y += 15;
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1565C0').text('FOTOS:', margin, y);
+      y += 8;
       
       const fotosAMostrar = datos.fotos.slice(0, 4);
-      const colWidth = (contentWidth / 2) - 10;
+      const colWidth = (contentWidth / 2) - 8;
       let fotoIndex = 0;
       
       fotosAMostrar.forEach((foto, index) => {
@@ -336,74 +329,73 @@ function generarCartaServicioPDF(datos) {
             
             const col = index % 2;
             const row = Math.floor(index / 2);
-            const fotoX = margin + (col * (colWidth + 10));
-            const fotoY = y + (row * 100);
+            const fotoX = margin + (col * (colWidth + 8));
+            const fotoY = y + (row * 85);
             
             const imgBuffer = Buffer.from(cleanBase64, 'base64');
-            doc.image(imgBuffer, fotoX, fotoY, { width: colWidth, height: 75, fit: 'contain' });
-            doc.fontSize(7).fillColor('#666').font('Helvetica').text(
+            doc.image(imgBuffer, fotoX, fotoY, { width: colWidth, height: 65, fit: 'contain' });
+            doc.fontSize(6).fillColor('#666').font('Helvetica').text(
               foto.nombre || `Foto ${index + 1}`, 
               fotoX, 
-              fotoY + 80, 
+              fotoY + 68, 
               { width: colWidth, align: 'center' }
             );
             fotoIndex++;
-          } catch (err) { console.error('❌ Error foto PDF:', err.message); }
+          } catch (err) { console.error('Error foto:', err.message); }
         }
       });
       
-      y += (Math.ceil(fotoIndex / 2) * 100) + 10;
+      y += (Math.ceil(fotoIndex / 2) * 85) + 8;
     }
 
     // ==========================================
-    // 7. UBICACIÓN (Sin emojis para evitar Ø=ÜÍ)
+    // 6. UBICACIÓN (Sin emojis)
     // ==========================================
     if (datos.ubicacion?.latitud) {
-      doc.fontSize(8).fillColor('#666').font('Helvetica')
-         .text(`Ubicación: ${datos.ubicacion.latitud}, ${datos.ubicacion.longitud}`, margin, y, { width: contentWidth });
-      y += 12;
+      doc.fontSize(7).fillColor('#666').font('Helvetica')
+         .text(`Ubicacion: ${datos.ubicacion.latitud}, ${datos.ubicacion.longitud}`, margin, y, { width: contentWidth });
+      y += 9;
       if (datos.ubicacion.direccion) {
-        doc.text(`Dirección: ${datos.ubicacion.direccion}`, margin, y, { width: contentWidth });
-        y += 12;
+        doc.text(`Direccion: ${datos.ubicacion.direccion}`, margin, y, { width: contentWidth });
+        y += 9;
       }
       if (datos.ubicacion.ciudad) {
         doc.text(`${datos.ubicacion.ciudad}, ${datos.ubicacion.pais || 'Colombia'}`, margin, y, { width: contentWidth });
-        y += 15;
+        y += 10;
       }
     }
 
     // ==========================================
-    // 8. FIRMAS (Ancladas al fondo)
+    // 7. FIRMAS (Compactas, forzadas al final)
     // ==========================================
-    const footerSpace = 130;
+    const footerSpace = 95;
     const pageBottom = pageHeight - margin;
-    let signY = Math.max(y, pageBottom - footerSpace); // Usamos let para poder modificarlo
+    let signY = Math.max(y, pageBottom - footerSpace);
     
-    // Línea superior
-    doc.moveTo(margin, signY).lineTo(pageWidth - margin, signY).strokeColor('#1565C0').lineWidth(1).stroke();
-    signY += 15;
+    doc.moveTo(margin, signY).lineTo(pageWidth - margin, signY).strokeColor('#1565C0').lineWidth(0.5).stroke();
+    signY += 10;
     
-    // CELCO (Izquierda)
-    doc.fontSize(9).fillColor('#000').font('Helvetica-Bold').text('En representación de CELCO S.A.S:', margin, signY);
-    doc.fontSize(8).font('Helvetica').text(`Nombre: ${datos.firmaCelcoNombre || '____________________'}`, margin, signY + 12);
-    doc.text(`Cargo: ${datos.firmaCelcoCargo || '____________________'}`, margin, signY + 24);
-    doc.moveTo(margin, signY + 45).lineTo(margin + 200, signY + 45).strokeColor('#999').lineWidth(1).stroke();
-    doc.fontSize(7).fillColor('#999').text('(Firma)', margin, signY + 50);
+    // CELCO
+    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representacion de CELCO S.A.S:', margin, signY);
+    doc.fontSize(7).font('Helvetica').text(`Nombre: ${datos.firmaCelcoNombre || '__________'}`, margin, signY + 8);
+    doc.text(`Cargo: ${datos.firmaCelcoCargo || '__________'}`, margin, signY + 16);
+    doc.moveTo(margin, signY + 28).lineTo(margin + 180, signY + 28).strokeColor('#999').lineWidth(0.5).stroke();
+    doc.fontSize(6).fillColor('#999').text('(Firma)', margin, signY + 32);
     
-    // CLIENTE (Derecha)
-    doc.fontSize(9).fillColor('#000').font('Helvetica-Bold').text('En representación del Cliente:', margin + 300, signY);
-    doc.fontSize(8).font('Helvetica').text(`Nombre: ${datos.firmaClienteNombre || '____________________'}`, margin + 300, signY + 12);
-    doc.text(`Cargo: ${datos.firmaClienteCargo || '____________________'}`, margin + 300, signY + 24);
-    doc.moveTo(margin + 300, signY + 45).lineTo(margin + 500, signY + 45).strokeColor('#999').lineWidth(1).stroke();
-    doc.fontSize(7).fillColor('#999').text('(Firma)', margin + 300, signY + 50);
+    // CLIENTE
+    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representacion del Cliente:', margin + 280, signY);
+    doc.fontSize(7).font('Helvetica').text(`Nombre: ${datos.firmaClienteNombre || '__________'}`, margin + 280, signY + 8);
+    doc.text(`Cargo: ${datos.firmaClienteCargo || '__________'}`, margin + 280, signY + 16);
+    doc.moveTo(margin + 280, signY + 28).lineTo(margin + 460, signY + 28).strokeColor('#999').lineWidth(0.5).stroke();
+    doc.fontSize(6).fillColor('#999').text('(Firma)', margin + 280, signY + 32);
 
     // ==========================================
-    // 9. PIE DE PÁGINA (Centrado y Fijo)
+    // 8. PIE DE PÁGINA (Centrado, SIN crear página nueva)
     // ==========================================
-    const finalFooterY = pageHeight - 25;
-    doc.fontSize(8).fillColor('#999').font('Helvetica')
-       .text('Celco S.A.S - Servicio Técnico Especializado', pageWidth / 2, finalFooterY, { align: 'center', width: contentWidth })
-       .text('Documento generado electrónicamente - Sistema de Gestión de Órdenes de Servicio', pageWidth / 2, finalFooterY + 12, { align: 'center', width: contentWidth });
+    const finalFooterY = pageHeight - 20;
+    doc.fontSize(7).fillColor('#999').font('Helvetica')
+       .text('Celco S.A.S - Servicio Tecnico Especializado', pageWidth / 2, finalFooterY - 10, { align: 'center', width: contentWidth })
+       .text('Documento generado electronicamente', pageWidth / 2, finalFooterY, { align: 'center', width: contentWidth });
 
     doc.end();
   });

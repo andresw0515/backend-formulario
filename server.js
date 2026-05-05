@@ -373,36 +373,39 @@ function generarCartaServicioPDF(datos) {
       }
     }
 
-    // ==========================================
-    // 7. FIRMAS (Compactas, forzadas al final)
-    // ==========================================
-    const footerSpace = 95;
-    const pageBottom = pageHeight - margin;
-    let signY = Math.max(y, pageBottom - footerSpace);
-    
-    doc.moveTo(margin, signY).lineTo(pageWidth - margin, signY).strokeColor('#1565C0').lineWidth(0.5).stroke();
-    signY += 10;
-    
-    // CELCO
-    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representación de CELCO S.A.S:', margin, signY);
-    doc.fontSize(7).font('Helvetica').text(`Nombre: ${datos.firmaCelcoNombre || '__________'}`, margin, signY + 8);
-    doc.text(`Cargo: ${datos.firmaCelcoCargo || '__________'}`, margin, signY + 16);
-    doc.moveTo(margin, signY + 28).lineTo(margin + 180, signY + 28).strokeColor('#999').lineWidth(0.5).stroke();
-    doc.fontSize(6).fillColor('#999').text('(Firma)', margin, signY + 32);
-    
-    // CLIENTE
-    doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representación del Cliente:', margin + 280, signY);
-    doc.fontSize(7).font('Helvetica').text(`Nombre: ${datos.firmaClienteNombre || '__________'}`, margin + 280, signY + 8);
-    doc.text(`Cargo: ${datos.firmaClienteCargo || '__________'}`, margin + 280, signY + 16);
-    doc.moveTo(margin + 280, signY + 28).lineTo(margin + 460, signY + 28).strokeColor('#999').lineWidth(0.5).stroke();
-    doc.fontSize(6).fillColor('#999').text('(Firma)', margin + 280, signY + 32);
+// ==========================================
+// 7. FIRMAS (CORREGIDO: Usar variables locales)
+// ==========================================
+const footerSpace = 95;
+const pageBottom = pageHeight - margin;
 
-    // ==========================================
-    // 8. PIE DE PÁGINA ELIMINADO (Para evitar 3ra página y errores de corte)
-    // ==========================================
-    // Se eliminaron las líneas del footer para dejar el documento limpio hasta las firmas.
+// Calcular posición Y de firmas SIN modificar 'y'
+let firmasY = Math.max(y, pageBottom - footerSpace); 
 
-    doc.end();
+// Línea separadora
+doc.moveTo(margin, firmasY).lineTo(pageWidth - margin, firmasY).strokeColor('#1565C0').lineWidth(0.5).stroke();
+firmasY += 12; // Avanzar SOLO la variable local
+
+// CELCO (Izquierda)
+doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representación de CELCO S.A.S:', margin, firmasY);
+doc.fontSize(7).font('Helvetica').text(`Nombre: ${datos.firmaCelcoNombre || '__________'}`, margin, firmasY + 8);
+doc.text(`Cargo: ${datos.firmaCelcoCargo || '__________'}`, margin, firmasY + 16);
+doc.moveTo(margin, firmasY + 28).lineTo(margin + 180, firmasY + 28).strokeColor('#999').lineWidth(0.5).stroke();
+doc.fontSize(6).fillColor('#999').text('(Firma)', margin, firmasY + 32);
+
+// CLIENTE (Derecha)
+doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('En representación del Cliente:', margin + 280, firmasY);
+doc.fontSize(7).font('Helvetica').text(`Nombre: ${datos.firmaClienteNombre || '__________'}`, margin + 280, firmasY + 8);
+doc.text(`Cargo: ${datos.firmaClienteCargo || '__________'}`, margin + 280, firmasY + 16);
+doc.moveTo(margin + 280, firmasY + 28).lineTo(margin + 460, firmasY + 28).strokeColor('#999').lineWidth(0.5).stroke();
+doc.fontSize(6).fillColor('#999').text('(Firma)', margin + 280, firmasY + 32);
+
+// ==========================================
+// 8. PIE DE PÁGINA (ELIMINADO)
+// ==========================================
+// Se eliminó para evitar saltos de página
+
+doc.end();
   });
 }
 
